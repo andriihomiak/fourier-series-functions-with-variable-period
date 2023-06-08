@@ -193,6 +193,7 @@ with col1:
             min_value=1,
         )
 
+with col2:        
     with st.expander("Параметри графіка", expanded=True):    
         start_plot = st.number_input(
             "Ліва межа для побудови графіка",
@@ -211,9 +212,28 @@ with col1:
             value=500,
             min_value=1,
         ))
+      
+        plot_titles = st.checkbox("Експортувати назви графіків", value=False)
 
-        plot_titles = st.checkbox("Експортувати назви графіків", value=True)
+        manual_axes_ratio = not st.checkbox("Підібрати автоматично співвідношення сторін для графіків", value=False)
+        if manual_axes_ratio:
+            axes_ratio = 1/float(st.number_input("Співвідношення ширина/висота для графіків",
+                                                 value=3.0, min_value=0.01, max_value=8.0))
+            st.info(f"Графік буде в **{1/axes_ratio:.1f}** разів ширшим ніж вищим")
 
+        manual_ylim = not st.checkbox("Підібрати автоматично межі $y$ для графіків", value=True)
+        if manual_ylim:
+            y_min = float(st.number_input("Нижня межа $y_{min}$ для графіків", value=-1.0))
+            y_max = float(st.number_input("Верхня межа $y_{max}$ для графіків", value=1.0))
+
+        func_color = st.color_picker("Колір лінії функції $f(x)$", value="#0000FF")
+        func_linewidth = st.slider("Товщина лінії функції $f(x)$", value=1., min_value=0.1, max_value=10.)
+        func_alpha = 1 - st.slider("Прозорість лінії функції $f(x)$", value=0.05, min_value=0., max_value=1.)
+        
+        approx_color = st.color_picker("Колір лінії апроксимації", value="#FFA500")
+        approx_linewidth = st.slider("Товщина лінії апроксимації", value=1., min_value=0.1, max_value=10.)
+        approx_alpha = 1 - st.slider("Прозорість лінії апроксимації", value=0.05, min_value=0., max_value=1.)
+            
 def integrate(f, start, end) -> float:
     return scipy.integrate.quad(f, start, end, limit=n_integration)[0]
 
@@ -270,8 +290,18 @@ def plot_function(f: Callable, start_plot: float, end_plot: float, n_points: int
     ax.grid(True, which='both', color="#eee", linewidth=0.75)
     ax.axhline(y=0, color='#333', linewidth=1)
     ax.axvline(x=0, color='#333', linewidth=1)
-    ax.plot(xs, ys, **kwargs, alpha=0.95)
+    ax.plot(xs, ys, **kwargs)
 
+    if manual_ylim:
+        ax.set_ylim([y_min, y_max])
+
+    if manual_axes_ratio:
+        fig = plt.gcf()
+        w, h = plt.figaspect(axes_ratio)
+        fig.set_size_inches(w, h)
+        
+
+    
 def plot_spectrum(A, ax: plt.Axes, **kwargs):
     ax.set_ylabel(r"$A_k$")
     ax.set_xlabel(r"$k$")
@@ -297,6 +327,9 @@ def render_series_info():
                       end_plot=end_plot,
                       n_points=n_plot,
                       label=f"${func.latex}$",
+                      color=func_color,
+                      linewidth=func_linewidth,
+                      alpha=func_alpha,
                       ax=ax)
         series = FourierSeries.construct(f=func,
                                          alpha=alpha,
@@ -307,6 +340,9 @@ def render_series_info():
                       end_plot=end_plot,
                       n_points=n_plot,
                       label=f"Апроксимація ${n=}$",
+                      color=approx_color,
+                      linewidth=approx_linewidth,
+                      alpha=approx_alpha,
                       ax=ax)
         if plot_titles:
             ax.set_title(f"Графік апроксимації ${func.latex}$ "r"($\alpha="f"{alpha_raw}"f"$) рядом Фур'є ${n=}$")
